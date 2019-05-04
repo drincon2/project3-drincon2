@@ -16,6 +16,10 @@
 
 #define GREEN_LED BIT6
 
+int score = 0;
+int score_count = 0;
+
+
 AbRect shipBody = {abRectGetBounds, abRectCheck, {1,2}};
 AbRect leftWing = {abRectGetBounds, abRectCheck, {1,2}};
 AbRect rightWing = {abRectGetBounds, abRectCheck, {1,2}};
@@ -176,30 +180,6 @@ void mlAdvance(MovLayer *ml, Region *fence)
 	int velocity = ml->velocity.axes[axis] = -ml->velocity.axes[axis];
 	newPos.axes[axis] += (2*velocity);
       }	/**< if outside of fence */
-      
-      if(abCircleCheck(&circle14,&(asteroid0.pos), &(ml -> layer -> pos)) && axis == 1) {
-        /*stop SHIP*/
-        ml_shipBody.velocity.axes[0] = 0;
-        ml_leftWing.velocity.axes[0] = 0;
-        ml_rightWing.velocity.axes[0] = 0;
-        ml_shipBody.velocity.axes[1] = 0;
-        ml_leftWing.velocity.axes[1] = 0;
-        ml_rightWing.velocity.axes[1] = 0;
-        
-        /*stop ASTEROIDS*/
-        ml_asteroid0.velocity.axes[0] = 0;
-        ml_asteroid1.velocity.axes[0] = 0;
-        ml_asteroid3.velocity.axes[0] = 0;
-        ml_asteroid4.velocity.axes[0] = 0;
-        ml_asteroid0.velocity.axes[1] = 0;
-        ml_asteroid1.velocity.axes[1] = 0;
-        ml_asteroid3.velocity.axes[1] = 0;
-        ml_asteroid4.velocity.axes[1] = 0;
-        
-        /*display GAME OVER */
-         drawString5x7(screenWidth/2-32,screenHeight/2+12, "GAME OVER", COLOR_WHITE, COLOR_BLACK);
-      }
-    
     } /**< for axis */
     ml->layer->posNext = newPos;
   } /**< for ml */
@@ -258,6 +238,50 @@ void move_ship() {
     }
 }
 
+int checkCollisions() {   
+    int gameOver = 0;
+    Region shipHitBox;
+    layerGetBounds(&rightWingLayer, &shipHitBox);
+    
+    Vec2 asteroid0_vec_1 = {asteroid0.posNext.axes[0], asteroid0.posNext.axes[1]};
+    Vec2 asteroid1_vec_2 = {asteroid1.posNext.axes[0], asteroid1.posNext.axes[1]};
+    Vec2 asteroid3_vec_3 = {asteroid3.posNext.axes[0], asteroid3.posNext.axes[1]};
+    Vec2 asteroid4_vec_4 = {asteroid4.posNext.axes[0], asteroid4.posNext.axes[1]};
+    Vec2 asteroids[4] = {asteroid0_vec_1, asteroid1_vec_2, asteroid3_vec_3, asteroid4_vec_4};
+    int i; 
+    
+    for(i = 0; i < 4; i++) {
+        if(asteroids[i].axes[0] - 4 < shipHitBox.botRight.axes[0] &&
+           asteroids[i].axes[0] + 4 > shipHitBox.topLeft.axes[0] &&
+           asteroids[i].axes[1] - 4 < shipHitBox.botRight.axes[1] &&
+           asteroids[i].axes[1] + 4 > shipHitBox.topLeft.axes[1]
+           ) {
+                /*stop SHIP*/
+            ml_shipBody.velocity.axes[0] = 0;
+            ml_leftWing.velocity.axes[0] = 0;
+            ml_rightWing.velocity.axes[0] = 0;
+            ml_shipBody.velocity.axes[1] = 0;
+            ml_leftWing.velocity.axes[1] = 0;
+            ml_rightWing.velocity.axes[1] = 0;
+    
+            /*stop ASTEROIDS*/
+            ml_asteroid0.velocity.axes[0] = 0;
+            ml_asteroid1.velocity.axes[0] = 0;
+            ml_asteroid3.velocity.axes[0] = 0;
+            ml_asteroid4.velocity.axes[0] = 0;
+            ml_asteroid0.velocity.axes[1] = 0;
+            ml_asteroid1.velocity.axes[1] = 0;
+            ml_asteroid3.velocity.axes[1] = 0;
+            ml_asteroid4.velocity.axes[1] = 0;
+        
+            /*display GAME OVER */
+            drawString5x7(screenWidth/2-32,screenHeight/2+12, "GAME OVER", COLOR_WHITE, COLOR_BLACK);
+            gameOver = 1;
+            return gameOver;
+        }
+    }
+    return gameOver;
+}
 
 
 u_int bgColor = COLOR_BLACK;     /**< The background color */
@@ -300,7 +324,13 @@ void main()
     redrawScreen = 0;
     movLayerDraw(&ml_asteroid0, &asteroid0);
     move_ship();
-    //checkCollisions();
+    int gameOver = checkCollisions();
+    /* Display score */
+    char score_str[4];
+    itoa(score, score_str, 10);
+    drawString5x7(screenWidth/2 - 25, 3 , "Score:    ", COLOR_WHITE, COLOR_BLACK);
+    drawString5x7(screenWidth/2 + 11, 3 , score_str, COLOR_WHITE, COLOR_BLACK);
+   
   }
 }
 
@@ -310,8 +340,15 @@ void wdt_c_handler()
   static short count = 0;
   P1OUT |= GREEN_LED;		      /**< Green LED on when cpu on */
   count ++;
-  if (count == 15) {
-    mlAdvance(&ml_rightWing, &fieldFence);
+  /*increment score */
+  score_count++;
+  if(score_count == 500 && checkCollisions() == 0) {
+      score++;
+      score_count = 0;
+  }
+  
+  if (count == 20) {
+    mlAdvance(&ml_asteroid0, &fieldFence);
     if (p2sw_read())
       redrawScreen = 1;
     count = 0;
