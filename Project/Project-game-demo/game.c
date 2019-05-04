@@ -1,10 +1,16 @@
-/** \file shapemotion.c
- *  \brief This is a simple shape motion demo.
- *  This demo creates two layers containing shapes.
- *  One layer contains a rectangle and the other a circle.
- *  While the CPU is running the green LED is on, and
- *  when the screen does not need to be redrawn the CPU
- *  is turned off along with the green LED.
+/**Game title: Shape shifter
+ * 
+ * Description: This is a simple game where the player controls a ship and must 
+ * avoid asteroids. The player wins points by time, that is, the more time the 
+ * player avoids the asteroids the more points he/she gets. The player loses 
+ * the game if the ship crashes with one of the asteroids.
+ * 
+ * Mechanics: The game is called Shape Shifter because the pieces that make up 
+ * the ship can be merged into one by bumping into the left and right edges of 
+ * the screen, reducing the hitbox of the ship itself and making the game easier. 
+ * However, the pieces can come apart if the ship bumps into the top and bottom 
+ * edges of the screen, which obvously extends the hitbox and makes the game 
+ * harder.
  */  
 #include <msp430.h>
 #include <libTimer.h>
@@ -16,33 +22,36 @@
 
 #define GREEN_LED BIT6
 
+// Scoring
 int score = 0;
 int score_count = 0;
 
-
+// Ship custom shape parts
 AbRect shipBody = {abRectGetBounds, abRectCheck, {1,2}};
 AbRect leftWing = {abRectGetBounds, abRectCheck, {1,2}};
 AbRect rightWing = {abRectGetBounds, abRectCheck, {1,2}};
- 
-//AbRect rect10 = {abRectGetBounds, abRectCheck, {5,5}}; /**< 10x10 rectangle */
-//AbRArrow rightArrow = {abRArrowGetBounds, abRArrowCheck, 30};
 
-AbRectOutline fieldOutline = {	/* playing field */
+// Playing field
+AbRectOutline fieldOutline = {
   abRectOutlineGetBounds, abRectOutlineCheck,   
   {screenWidth/2 - 10, screenHeight/2 - 10}
 };
 
-/* SHIP */
+// Ship custom shape
 Layer shipBodyLayer = {
     (AbShape *)&shipBody, 
+    // Ship body at center and bottom of the screen
     {(screenWidth/2), (screenHeight/2)+50},
+    // Last and next position
     {0,0}, {0,0}, 
+    // Color of ship body set to white
     COLOR_WHITE, 
     0
 };
 
 Layer leftWingLayer = {
     (AbShape *)&leftWing, 
+    // Left wing sligthly to the left and down of ship body 
     {(screenWidth/2)-3, (screenHeight/2)+53},
     {0,0}, {0,0}, 
     COLOR_WHITE, 
@@ -51,53 +60,61 @@ Layer leftWingLayer = {
 
 Layer rightWingLayer = {
     (AbShape *)&rightWing, 
+    // Right wing slightly to the right and down of ship body
     {(screenWidth/2)+3, (screenHeight/2)+53},
     {0,0}, {0,0}, 
     COLOR_WHITE, 
     &leftWingLayer,
 };
 
-/* ASTEROIDS */
+// Asteroids
 Layer asteroid4 = {  
   (AbShape *)&circle9,
-  {(screenWidth/2)-20, (screenHeight/2)-5}, /**< bit below & right of center */
-  {0,0}, {0,0},				    /* last & next pos */
+  // Asteroid 4 to the left and slightly above center of the screen
+  {(screenWidth/2)-20, (screenHeight/2)-5},
+  {0,0}, {0,0},
+  // Color of asteroid set to white
   COLOR_WHITE,
   &rightWingLayer,
 };
   
 
-Layer asteroid3 = {		/**< Layer with an orange circle */
+Layer asteroid3 = {
   (AbShape *)&circle8,
-  {(screenWidth/2)+10, (screenHeight/2)+5}, /**< bit below & right of center */
-  {0,0}, {0,0},				    /* last & next pos */
+  // Asteroid 3 to the right and slightly below center of the screen  
+  {(screenWidth/2)+10, (screenHeight/2)+5},
+  {0,0}, {0,0},
+  // Color of asteroid set to gray
   COLOR_GRAY,
   &asteroid4,
 };
 
-
-Layer fieldLayer = {		/* playing field as a layer */
+// Playing field as a layer
+Layer fieldLayer = {
   (AbShape *) &fieldOutline,
-  {screenWidth/2, screenHeight/2},/**< center */
-  {0,0}, {0,0},				    /* last & next pos */
+  // Field layer at center of the screen
+  {screenWidth/2, screenHeight/2},
+  {0,0}, {0,0},				    
   COLOR_RED,
   &asteroid3,
 };
 
-Layer asteroid1 = {		/**< Layer with a red square */
+Layer asteroid2 = {
   (AbShape *)&circle4,
-  {screenWidth/2, screenHeight/2}, /**< center */
-  {0,0}, {0,0},				    /* last & next pos */
+  // Asteroid 2 at center of the screen
+  {screenWidth/2, screenHeight/2},
+  {0,0}, {0,0},				   
   COLOR_WHITE,
   &fieldLayer,
 };
 
-Layer asteroid0 = {		/**< Layer with an orange circle */
+Layer asteroid1 = {
   (AbShape *)&circle14,
-  {(screenWidth/2)+10, (screenHeight/2)+5}, /**< bit below & right of center */
-  {0,0}, {0,0},				    /* last & next pos */
+  // Asteroid 1 to the right and slightly below center of the screen
+  {(screenWidth/2)+10, (screenHeight/2)+5},
+  {0,0}, {0,0},
   COLOR_GRAY,
-  &asteroid1,
+  &asteroid2,
 };
 
 /** Moving Layer
@@ -110,31 +127,33 @@ typedef struct MovLayer_s {
   struct MovLayer_s *next;
 } MovLayer;
 
-/* initial value of {0,0} will be overwritten */
+// initial value of {0,0} will be overwritten 
 MovLayer ml_shipBody = {&shipBodyLayer, {0,0}, 0};
 MovLayer ml_leftWing = {&leftWingLayer, {0,0}, &ml_shipBody};
 MovLayer ml_rightWing = {&rightWingLayer, {0,0}, &ml_leftWing};
 MovLayer ml_asteroid4 = { &asteroid4, {1,1}, &ml_rightWing};
-MovLayer ml_asteroid3 = { &asteroid3, {1,1}, &ml_asteroid4}; /**not all layers move */
-MovLayer ml_asteroid1 = { &asteroid1, {1,2}, &ml_asteroid3 }; 
-MovLayer ml_asteroid0 = { &asteroid0, {2,1}, &ml_asteroid1 }; 
-//MovLayer ship = { &shipBodyLayer, {0,0}, &ml0}
+MovLayer ml_asteroid3 = { &asteroid3, {1,1}, &ml_asteroid4}; 
+MovLayer ml_asteroid2 = { &asteroid2, {1,2}, &ml_asteroid3 }; 
+MovLayer ml_asteroid1 = { &asteroid1, {2,1}, &ml_asteroid2 }; 
 
 void movLayerDraw(MovLayer *movLayers, Layer *layers)
 {
   int row, col;
   MovLayer *movLayer;
 
-  and_sr(~8);			/**< disable interrupts (GIE off) */
-  for (movLayer = movLayers; movLayer; movLayer = movLayer->next) { /* for each moving layer */
+  // Disable interrupts (GIE off)
+  and_sr(~8);
+  // For each moving layer
+  for (movLayer = movLayers; movLayer; movLayer = movLayer->next) {
     Layer *l = movLayer->layer;
     l->posLast = l->pos;
     l->pos = l->posNext;
   }
-  or_sr(8);			/**< disable interrupts (GIE on) */
+  // Disable interrupts (GIE on)
+  or_sr(8);
 
-
-  for (movLayer = movLayers; movLayer; movLayer = movLayer->next) { /* for each moving layer */
+  // For each moving layer
+  for (movLayer = movLayers; movLayer; movLayer = movLayer->next) {
     Region bounds;
     layerGetBounds(movLayer->layer, &bounds);
     lcd_setArea(bounds.topLeft.axes[0], bounds.topLeft.axes[1], 
@@ -145,16 +164,17 @@ void movLayerDraw(MovLayer *movLayers, Layer *layers)
 	u_int color = bgColor;
 	Layer *probeLayer;
 	for (probeLayer = layers; probeLayer; 
-	     probeLayer = probeLayer->next) { /* probe all layers, in order */
+	     // Probe all layers, in order
+         probeLayer = probeLayer->next) {
 	  if (abShapeCheck(probeLayer->abShape, &probeLayer->pos, &pixelPos)) {
 	    color = probeLayer->color;
 	    break; 
-	  } /* if probe check */
-	} // for checking all layers at col, row
+	  } // If probe check 
+	} // For checking all layers at col, row
 	lcd_writeColor(color); 
-      } // for col
-    } // for row
-  } // for moving layer being updated
+      } // For col
+    } // For row
+  } // For moving layer being updated
 }	  
 
 
@@ -179,34 +199,39 @@ void mlAdvance(MovLayer *ml, Region *fence)
 	  (shapeBoundary.botRight.axes[axis] > fence->botRight.axes[axis]) ) {
 	int velocity = ml->velocity.axes[axis] = -ml->velocity.axes[axis];
 	newPos.axes[axis] += (2*velocity);
-      }	/**< if outside of fence */
-    } /**< for axis */
+      }	// If outside of fence 
+    } // For axis 
     ml->layer->posNext = newPos;
-  } /**< for ml */
+  } // For ml 
 }
 
 
-/* ALLOW PLAYER TO MOVE USING SWITCHES */
-/* Set velocity of ship */
+// Allow player to move the ship 
+// Set velocity of ship 
 void set_velocity(int axis, int v) {
     ml_shipBody.velocity.axes[axis] = v;
     ml_leftWing.velocity.axes[axis] = v;
     ml_rightWing.velocity.axes[axis] = v;
 }
 
-/* Allow the player to move the ship by using the switches */
+// Detect user input and move the ship depending on the switch being pressed 
 void move_ship() {
+    // Enable switch detection
     u_int switches = p2sw_read();
    
+    // Switches being pressed
     unsigned char s1_pressed = (switches & 1) ? 0 : 1;
     unsigned char s2_pressed = (switches & 2) ? 0 : 1;
     unsigned char s3_pressed = (switches & 4) ? 0 : 1;
     unsigned char s4_pressed = (switches & 8) ? 0 : 1;
+    
+    // Direction of ship movement
     char left = 0;
     char up= 0;
     char down = 0;
     char right = 0;
     
+    // Determine direction of ship movement based on the switch being pressed
     if(s1_pressed) {
         left = 1;
     }
@@ -220,6 +245,7 @@ void move_ship() {
         right = 1;
     }
     
+    // Change velocity and direction of ship based on the switch being pressed
     if(left) {
         set_velocity(0,-2);
     }
@@ -238,25 +264,31 @@ void move_ship() {
     }
 }
 
+// Check the collisions between the ship and the asteroids
 int checkCollisions() {   
     int gameOver = 0;
+    // Ship hit box
     Region shipHitBox;
+    // Bounds of ship hit box
     layerGetBounds(&rightWingLayer, &shipHitBox);
     
-    Vec2 asteroid0_vec_1 = {asteroid0.posNext.axes[0], asteroid0.posNext.axes[1]};
-    Vec2 asteroid1_vec_2 = {asteroid1.posNext.axes[0], asteroid1.posNext.axes[1]};
+    // Asteroid vectors 
+    Vec2 asteroid1_vec_1 = {asteroid1.posNext.axes[0], asteroid1.posNext.axes[1]};
+    Vec2 asteroid2_vec_2 = {asteroid2.posNext.axes[0], asteroid2.posNext.axes[1]};
     Vec2 asteroid3_vec_3 = {asteroid3.posNext.axes[0], asteroid3.posNext.axes[1]};
     Vec2 asteroid4_vec_4 = {asteroid4.posNext.axes[0], asteroid4.posNext.axes[1]};
-    Vec2 asteroids[4] = {asteroid0_vec_1, asteroid1_vec_2, asteroid3_vec_3, asteroid4_vec_4};
+    Vec2 asteroids[4] = {asteroid1_vec_1, asteroid2_vec_2, asteroid3_vec_3, asteroid4_vec_4};
     int i; 
     
+    // Check the collisions between the ship and the asteroids
     for(i = 0; i < 4; i++) {
+        // Stop the movement of the ship and asteroids of the ship collides with the asteroids
         if(asteroids[i].axes[0] - 4 < shipHitBox.botRight.axes[0] &&
-           asteroids[i].axes[0] + 4 > shipHitBox.topLeft.axes[0] &&
-           asteroids[i].axes[1] - 4 < shipHitBox.botRight.axes[1] &&
-           asteroids[i].axes[1] + 4 > shipHitBox.topLeft.axes[1]
-           ) {
-                /*stop SHIP*/
+            asteroids[i].axes[0] + 4 > shipHitBox.topLeft.axes[0] &&
+            asteroids[i].axes[1] - 4 < shipHitBox.botRight.axes[1] &&
+            asteroids[i].axes[1] + 4 > shipHitBox.topLeft.axes[1]
+            ) {
+            // Stop ship
             ml_shipBody.velocity.axes[0] = 0;
             ml_leftWing.velocity.axes[0] = 0;
             ml_rightWing.velocity.axes[0] = 0;
@@ -264,17 +296,17 @@ int checkCollisions() {
             ml_leftWing.velocity.axes[1] = 0;
             ml_rightWing.velocity.axes[1] = 0;
     
-            /*stop ASTEROIDS*/
-            ml_asteroid0.velocity.axes[0] = 0;
+            // Stop Asteroids
             ml_asteroid1.velocity.axes[0] = 0;
+            ml_asteroid2.velocity.axes[0] = 0;
             ml_asteroid3.velocity.axes[0] = 0;
             ml_asteroid4.velocity.axes[0] = 0;
-            ml_asteroid0.velocity.axes[1] = 0;
             ml_asteroid1.velocity.axes[1] = 0;
+            ml_asteroid2.velocity.axes[1] = 0;
             ml_asteroid3.velocity.axes[1] = 0;
             ml_asteroid4.velocity.axes[1] = 0;
         
-            /*display GAME OVER */
+            // display GAME OVER message
             drawString5x7(screenWidth/2-32,screenHeight/2+12, "GAME OVER", COLOR_WHITE, COLOR_BLACK);
             gameOver = 1;
             return gameOver;
@@ -283,11 +315,12 @@ int checkCollisions() {
     return gameOver;
 }
 
-
-u_int bgColor = COLOR_BLACK;     /**< The background color */
-int redrawScreen = 1;           /**< Boolean for whether screen needs to be redrawn */
-
-Region fieldFence;		/**< fence around playing field  */
+// Background color
+u_int bgColor = COLOR_BLACK;
+// Boolean for whether screen needs to be redrawn
+int redrawScreen = 1;
+// Fence around playing field
+Region fieldFence;
 
 
 /** Initializes everything, enables interrupts and green LED, 
@@ -295,7 +328,8 @@ Region fieldFence;		/**< fence around playing field  */
  */
 void main()
 {
-  P1DIR |= GREEN_LED;		/**< Green led on when CPU on */		
+  // Green led on when CPU on
+    P1DIR |= GREEN_LED;		
   P1OUT |= GREEN_LED;
 
   configureClocks();
@@ -305,27 +339,32 @@ void main()
 
   shapeInit();
 
-  layerInit(&asteroid0);
-  layerDraw(&asteroid0);
+  layerInit(&asteroid1);
+  layerDraw(&asteroid1);
   
 
   layerGetBounds(&fieldLayer, &fieldFence);
 
-
-  enableWDTInterrupts();      /**< enable periodic interrupt */
-  or_sr(0x8);	              /**< GIE (enable interrupts) */
+  // Enable preiodic interrupt
+  enableWDTInterrupts();
+  // GIE (enable interrupts
+  or_sr(0x8);
   
   for(;;) { 
-    while (!redrawScreen) { /**< Pause CPU if screen doesn't need updating */
-      P1OUT &= ~GREEN_LED;    /**< Green led off witHo CPU */
-      or_sr(0x10);	      /**< CPU OFF */
+    // Pause CPU if screen doesn't need updating 
+    while (!redrawScreen) { 
+        // Green led off witHo CPU
+        P1OUT &= ~GREEN_LED;   
+        /**< CPU OFF */
+        or_sr(0x10);	      
     }
-    P1OUT |= GREEN_LED;       /**< Green led on when CPU on */
+    // Green led on when CPU on 
+    P1OUT |= GREEN_LED;       
     redrawScreen = 0;
-    movLayerDraw(&ml_asteroid0, &asteroid0);
+    movLayerDraw(&ml_asteroid1, &asteroid1);
     move_ship();
     int gameOver = checkCollisions();
-    /* Display score */
+    // Display score 
     char score_str[4];
     itoa(score, score_str, 10);
     drawString5x7(screenWidth/2 - 25, 3 , "Score:    ", COLOR_WHITE, COLOR_BLACK);
@@ -334,13 +373,14 @@ void main()
   }
 }
 
-/** Watchdog timer interrupt handler. 15 interrupts/sec */
+// Watchdog timer interrupt handler. 15 interrupts/sec 
 void wdt_c_handler()
 {
   static short count = 0;
-  P1OUT |= GREEN_LED;		      /**< Green LED on when cpu on */
+  // Green LED on when cpu on
+  P1OUT |= GREEN_LED;
   count ++;
-  /*increment score */
+  // Increment score
   score_count++;
   if(score_count == 500 && checkCollisions() == 0) {
       score++;
@@ -348,11 +388,12 @@ void wdt_c_handler()
   }
   
   if (count == 20) {
-    mlAdvance(&ml_asteroid0, &fieldFence);
+    mlAdvance(&ml_asteroid1, &fieldFence);
     if (p2sw_read())
       redrawScreen = 1;
     count = 0;
   } 
-  P1OUT &= ~GREEN_LED;		    /**< Green LED off when cpu off */
+  // Green LED off when cpu off 
+  P1OUT &= ~GREEN_LED;
 }
 
