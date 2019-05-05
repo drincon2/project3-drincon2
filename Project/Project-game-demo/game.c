@@ -19,6 +19,7 @@
 #include <p2switches.h>
 #include "shape.h"
 #include <abCircle.h>
+#include "buzzer.h"
 
 #define GREEN_LED BIT6
 
@@ -248,16 +249,20 @@ void move_ship() {
     // Change velocity and direction of ship based on the switch being pressed
     if(left) {
         set_velocity(0,-2);
+        advanceState();
     }
     
     else if(up) {
         set_velocity(1,-2);
+        advanceState();
     }
     else if(down) {
         set_velocity(1,2);
+        advanceState();
     }
     else if(right) {
         set_velocity(0,2);
+        advanceState();
     }
     else {
         set_velocity(0,0);
@@ -309,6 +314,7 @@ int checkCollisions() {
             // display GAME OVER message
             drawString5x7(screenWidth/2-32,screenHeight/2+12, "GAME OVER", COLOR_WHITE, COLOR_BLACK);
             gameOver = 1;
+            buzzerSetPeriod(1500);
             return gameOver;
         }
     }
@@ -334,6 +340,7 @@ void main()
 
   configureClocks();
   lcd_init();
+  buzzerInit();
   shapeInit();
   p2sw_init(15);
 
