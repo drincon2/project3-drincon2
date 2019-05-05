@@ -10,11 +10,13 @@ AS              = msp430-elf-gcc -mmcu=${CPU} -c
 all:game.elf
 
 #additional rules for files
-game.elf: ${COMMON_OBJECTS} game.o wdt_handler.o ship.o
+game.elf: ${COMMON_OBJECTS} game.o wdt_handler.o ship.o buzzer.o StateMachine.o
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^ -lTimer -lLcd -lShape -lCircle -lp2sw
 
 load: game.elf
 	mspdebug rf2500 "prog $^"
+	
+StateMachine.o: StateMachine.s
 
 clean:
 	rm -f *.o *.elf
