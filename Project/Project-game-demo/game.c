@@ -209,14 +209,14 @@ void mlAdvance(MovLayer *ml, Region *fence)
 
 // Allow player to move the ship 
 // Set velocity of ship 
-void set_velocity(int axis, int v) {
+void setVelocity(int axis, int v) {
     ml_shipBody.velocity.axes[axis] = v;
     ml_leftWing.velocity.axes[axis] = v;
     ml_rightWing.velocity.axes[axis] = v;
 }
 
 // Detect user input and move the ship depending on the switch being pressed 
-void move_ship() {
+void moveShip() {
     // Enable switch detection
     u_int switches = p2sw_read();
    
@@ -247,25 +247,26 @@ void move_ship() {
     }
     
     // Change velocity and direction of ship based on the switch being pressed
+    // and make sounds as long as the ship is moving
     if(left) {
-        set_velocity(0,-2);
+        setVelocity(0,-2);
         advanceState();
     }
     
     else if(up) {
-        set_velocity(1,-2);
+        setVelocity(1,-2);
         advanceState();
     }
     else if(down) {
-        set_velocity(1,2);
+        setVelocity(1,2);
         advanceState();
     }
     else if(right) {
-        set_velocity(0,2);
+        setVelocity(0,2);
         advanceState();
     }
     else {
-        set_velocity(0,0);
+        setVelocity(0,0);
     }
 }
 
@@ -311,10 +312,11 @@ int checkCollisions() {
             ml_asteroid3.velocity.axes[1] = 0;
             ml_asteroid4.velocity.axes[1] = 0;
         
-            // display GAME OVER message
-            drawString5x7(screenWidth/2-32,screenHeight/2+12, "GAME OVER", COLOR_WHITE, COLOR_BLACK);
+            // Display GAME OVER message
+            drawString5x7(screenWidth/2-25,screenHeight/2, "GAME OVER", COLOR_WHITE, COLOR_BLACK);
             gameOver = 1;
-            buzzerSetPeriod(1500);
+            // Stop all noises 
+            buzzerSetPeriod(0);
             return gameOver;
         }
     }
@@ -369,7 +371,7 @@ void main()
     P1OUT |= GREEN_LED;       
     redrawScreen = 0;
     movLayerDraw(&ml_asteroid1, &asteroid1);
-    move_ship();
+    moveShip();
     int gameOver = checkCollisions();
     // Display score 
     char score_str[4];
@@ -380,7 +382,7 @@ void main()
   }
 }
 
-// Watchdog timer interrupt handler. 15 interrupts/sec 
+// Watchdog timer interrupt handler. 20 interrupts/sec 
 void wdt_c_handler()
 {
   static short count = 0;
@@ -404,3 +406,4 @@ void wdt_c_handler()
   P1OUT &= ~GREEN_LED;
 }
 
+// In collaboration with Cynthia Sustaita (checkCollisions and moveShip).
